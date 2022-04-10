@@ -83,6 +83,7 @@ final class SequentialWebCrawler implements WebCrawler {
       return;
     }
     visitedUrls.add(url);
+    // This handles the downloading/loading local html and parsing for words and links
     PageParser.Result result = parserFactory.get(url).parse();
     for (Map.Entry<String, Integer> e : result.getWordCounts().entrySet()) {
       if (counts.containsKey(e.getKey())) {
