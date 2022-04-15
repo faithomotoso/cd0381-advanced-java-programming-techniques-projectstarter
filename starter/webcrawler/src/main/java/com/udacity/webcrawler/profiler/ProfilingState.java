@@ -15,6 +15,7 @@ import java.util.stream.Collectors;
  */
 final class ProfilingState {
   private final Map<String, Duration> data = new ConcurrentHashMap<>();
+  private final Map<String, Integer> methodCount = new ConcurrentHashMap<>();
 
   /**
    * Records the given method invocation data.
@@ -23,7 +24,7 @@ final class ProfilingState {
    * @param method       the method that was called.
    * @param elapsed      the amount of time that passed while the method was called.
    */
-  void record(Class<?> callingClass, Method method, Duration elapsed) {
+  void record(Class<?> callingClass, Method method, Duration elapsed, long threadId) {
     Objects.requireNonNull(callingClass);
     Objects.requireNonNull(method);
     Objects.requireNonNull(elapsed);
@@ -31,7 +32,8 @@ final class ProfilingState {
       throw new IllegalArgumentException("negative elapsed time");
     }
     String key = formatMethodCall(callingClass, method);
-    data.compute(key, (k, v) -> (v == null) ? elapsed : v.plus(elapsed));
+    data.compute(key+"-threadId->"+threadId, (k, v) -> (v == null) ? elapsed : v.plus(elapsed));
+    methodCount.compute(key, (k, v) -> (v == null) ? 1 : v++);
   }
 
   /**

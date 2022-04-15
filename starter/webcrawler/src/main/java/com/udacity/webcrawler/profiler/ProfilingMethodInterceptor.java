@@ -45,7 +45,8 @@ final class ProfilingMethodInterceptor implements InvocationHandler {
     } finally {
       if (isMethodProfiled(method)) {
         Instant endTime = clock.instant();
-        profilingState.record(delegate.getClass(), method, Duration.between(startTime, endTime));
+        long threadId = Thread.currentThread().getId();
+        profilingState.record(delegate.getClass(), method, Duration.between(startTime, endTime), threadId);
       }
     }
   }
