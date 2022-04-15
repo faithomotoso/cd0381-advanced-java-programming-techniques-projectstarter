@@ -12,6 +12,7 @@ import java.time.Clock;
 import java.time.ZonedDateTime;
 import java.util.Arrays;
 import java.util.Objects;
+import java.util.stream.Collectors;
 
 import static java.time.format.DateTimeFormatter.RFC_1123_DATE_TIME;
 
@@ -20,68 +21,58 @@ import static java.time.format.DateTimeFormatter.RFC_1123_DATE_TIME;
  */
 final class ProfilerImpl implements Profiler {
 
-  private final Clock clock;
-  private final ProfilingState state = new ProfilingState();
-  private final ZonedDateTime startTime;
+    private final Clock clock;
+    private final ProfilingState state = new ProfilingState();
+    private final ZonedDateTime startTime;
 
-  @Inject
-  ProfilerImpl(Clock clock) {
-    this.clock = Objects.requireNonNull(clock);
-    this.startTime = ZonedDateTime.now(clock);
-  }
-
-  @Override
-  public <T> T wrap(Class<T> klass, T delegate) throws IllegalArgumentException{
-    Objects.requireNonNull(klass);
-
-    // TODO: Use a dynamic proxy (java.lang.reflect.Proxy) to "wrap" the delegate in a
-    //       ProfilingMethodInterceptor and return a dynamic proxy from this method.
-    //       See https://docs.oracle.com/javase/10/docs/api/java/lang/reflect/Proxy.html.
-
-    if (!hasProfiledMethod(klass)) {
-      throw new IllegalArgumentException("No profiled method present in this class");
+    @Inject
+    ProfilerImpl(Clock clock) {
+        this.clock = Objects.requireNonNull(clock);
+        this.startTime = ZonedDateTime.now(clock);
     }
 
-    final InvocationHandler invocationHandler = new ProfilingMethodInterceptor(clock);
-    T profiledClass = (T) Proxy.newProxyInstance(
-            delegate.getClass().getClassLoader(),
-            new Class<?>[] {klass},
-            invocationHandler
-    );
+    @Override
+    public <T> T wrap(Class<T> klass, T delegate) throws IllegalArgumentException {
+        Objects.requireNonNull(klass);
 
-    return profiledClass;
-  }
+        // TODO: Use a dynamic proxy (java.lang.reflect.Proxy) to "wrap" the delegate in a
+        //       ProfilingMethodInterceptor and return a dynamic proxy from this method.
+        //       See https://docs.oracle.com/javase/10/docs/api/java/lang/reflect/Proxy.html.
 
-  private <T> boolean hasProfiledMethod(Class<T> klass) {
-//    System.out.println("Checking delegate " + klass.getName());
-    Method[] methods = klass.getMethods();
-    if (methods.length == 0) return false;
+        if (!hasProfiledMethod(klass)) {
+            throw new IllegalArgumentException("No profiled method present in this class");
+        }
 
-    boolean hasProfiled = false;
-    for (int i = 0; i < methods.length; i++) {
-//      System.out.println("Checking method: " + methods[i].getName() + " Annotation=" + methods[i].getAnnotation(Profiled.class));
-      if (methods[i].getAnnotation(Profiled.class) != null) {
-        hasProfiled = true;
-        break;
-      }
+        final InvocationHandler invocationHandler = new ProfilingMethodInterceptor(delegate, state, clock);
+        T profiledClass = (T) Proxy.newProxyInstance(
+                delegate.getClass().getClassLoader(),
+                new Class<?>[]{klass},
+                invocationHandler
+        );
+
+        return profiledClass;
     }
 
-    return hasProfiled;
-  }
+    private <T> boolean hasProfiledMethod(Class<T> klass) {
+        return !Arrays.stream(klass.getMethods())
+                .filter(m -> m.getAnnotation(Profiled.class) != null)
+                .collect(Collectors.toList())
+                .isEmpty();
+    }
 
-  @Override
-  public void writeData(Path path) throws IOException {
-    // TODO: Write the ProfilingState data to the given file path. If a file already exists at that
-    //       path, the new data should be appended to the existing file.
-    Writer writer = Files.newBufferedWriter(path);
-    writeData(writer);
-  }
+    @Override
+    public void writeData(Path path) throws IOException {
+        // TODO: Write the ProfilingState data to the given file path. If a file already exists at that
+        //       path, the new data should be appended to the existing file.
+        Writer writer = Files.newBufferedWriter(path);
+        writeData(writer);
+    }
 
-  @Override
-  public void writeData(Writer writer) throws IOException {
-    writer.write("Run at " + RFC_1123_DATE_TIME.format(startTime));
-    writer.write(System.lineSeparator());
-    state.write(writer);
-    writer.write(System.lineSeparator());
-  }
+    @Override
+    public void writeData(Writer writer) throws IOException {
+        writer.write("Run at " + RFC_1123_DATE_TIME.format(startTime));
+        writer.write(System.lineSeparator());
+        state.write(writer);
+        writer.write(System.lineSeparator());
+    }
 }

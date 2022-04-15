@@ -5,6 +5,7 @@ import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
 import java.lang.reflect.UndeclaredThrowableException;
 import java.time.Clock;
+import java.time.Duration;
 import java.time.Instant;
 import java.util.Objects;
 
@@ -15,10 +16,13 @@ import java.util.Objects;
 final class ProfilingMethodInterceptor implements InvocationHandler {
 
   private final Clock clock;
-  private Instant startTime, endTime;
+  private final Object delegate; // Profiled class
+  private final ProfilingState profilingState;
 
   // TODO: You will need to add more instance fields and constructor arguments to this class.
-  ProfilingMethodInterceptor(Clock clock) {
+  ProfilingMethodInterceptor(Object delegate, ProfilingState profilingState, Clock clock) {
+    this.delegate = Objects.requireNonNull(delegate);
+    this.profilingState = Objects.requireNonNull(profilingState);
     this.clock = Objects.requireNonNull(clock);
   }
 
@@ -31,35 +35,19 @@ final class ProfilingMethodInterceptor implements InvocationHandler {
     //       ProfilingState methods.
 
 
-    if (!isMethodProfiled(method)) {
-      // No profiled annotation
-      try {
-        return method.invoke(proxy, args);
-      } catch (InvocationTargetException e) {
-        throw e.getCause();
-      } catch (IllegalAccessException e) {
-        throw new RuntimeException(e);
+    Instant startTime = clock.instant();
+    try {
+      return method.invoke(delegate, args);
+    } catch (InvocationTargetException e) {
+      throw e.getTargetException();
+    } catch (IllegalAccessException e) {
+      throw new RuntimeException(e);
+    } finally {
+      if (isMethodProfiled(method)) {
+        Instant endTime = clock.instant();
+        profilingState.record(delegate.getClass(), method, Duration.between(startTime, endTime));
       }
     }
-
-    Object result = null;
-    Exception exception = null;
-    startTime = clock.instant();
-
-    try {
-      result = method.invoke(proxy, args);
-    } catch (Exception e) {
-      exception = e;
-    }
-    finally {
-      endTime = clock.instant();
-    }
-
-    if (exception != null) {
-      throw exception;
-    }
-
-    return result;
   }
 
   private boolean isMethodProfiled(Method method) {
