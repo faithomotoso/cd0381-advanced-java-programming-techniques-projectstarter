@@ -11,6 +11,9 @@ Q1. Run the web crawler using the configurations located at src/main/config/writ
 
     Why did the parser take more time when run with ParallelWebCrawler?
 
+A1. With ParallelWebCrawler, more urls were visited (in my case 18 for parallel and 3 for sequential) making the ParallelWebCrawler
+    parse more webpages than the SequentialWebCrawler and with each website being different in terms of length, content and size
+    parallel is bound to encounter more elements to process
 
 Q2. Your manager ran your crawler on her old personal computer, using the configurations from Q1, and she notices that
     the sequential crawler actually outperforms the parallel crawler. She would like to know why.
@@ -21,6 +24,14 @@ Q2. Your manager ran your crawler on her old personal computer, using the config
     (b) Suggest one scenario in which the parallel web crawler will almost certainly perform better than the sequential
         crawler. Why will it perform better?
 
+A2.
+    (a) A reason why sequential crawler outperforms parallel crawler can be due to the computer not having multiple CPU
+        cores to utilize. Java's creating of ThreadPools takes up CPU resource which slows the program down a bit.
+
+    (b) A scenario where parallel web crawler will outperform sequential crawler will be running the program on a computer
+        that has multiple CPU cores. It'll outperform better because Java will be able to assign tasks to the available cores
+        and run them accordingly.
+
 
 Q3. Analyze your method profiler through the lens of Aspect Oriented Programming, by answering the following questions:
 
@@ -28,6 +39,10 @@ Q3. Analyze your method profiler through the lens of Aspect Oriented Programming
 
     (b) What are the join points of the Profiler in the web crawler program?
 
+A3.
+    (a) Method profiling
+
+    (b) wrap, writeData(Path), writeData(Writer)
 
 Q4. Identify three (3) different design patterns used in this project, and explain which interfaces, classes, and/or
     libraries use or implement those design patterns.
@@ -35,4 +50,32 @@ Q4. Identify three (3) different design patterns used in this project, and expla
     For each pattern, name one thing about the pattern that you LIKED, and one thing you DISLIKED. If you did not like
     anything, you can name two things you disliked.
 
+A4. Dependency Injection, used by WebCrawlerMain to get the Profiler and WebCrawler, also used in tests
 
+    Singleton Pattern, used by WebCrawlerModule#provideWebCrawlerProxy, WebCrawlerModule#provideTargerParallelism
+
+    Builder Pattern, used by CrawlerConfiguration, CrawlResult, PageParse to simplify variables
+    being set in a constructor and reuse variables
+
+    Likes:
+    Dependency Injection:
+        - I like that class constructors don't have to be used by passing variables into them as
+          everything is handled by DI
+
+    Singleton:
+        - I like that I'm sure of getting the same instance throughout the lifecycle of the program and testing
+          is made possible using DI
+
+    Builder Patten:
+        - I like that I can reuse variables already set and just change the ones I need to, prevents
+          lots of duplication when reusing Classes with minor differences
+
+
+    Dislikes:
+    Dependency Injection:
+        - It can get confusing, especially seeing new annotation like @Singleton and @Provides
+          and not knowing how it's being used because it's not being set in the Module, for example
+          I don't know how the program knows to use WebCrawlerModule#provideWebCrawlerProxy as I can't see it being set anywhere
+
+    Builder Pattern:
+        - Lots of code to write, basically duplicating the variables of the class you want to represent using a builder
