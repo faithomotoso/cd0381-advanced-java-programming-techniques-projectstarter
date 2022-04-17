@@ -19,44 +19,54 @@ import java.util.Objects;
 
 public final class WebCrawlerMain {
 
-  private final CrawlerConfiguration config;
+    private final CrawlerConfiguration config;
 
-  private WebCrawlerMain(CrawlerConfiguration config) {
-    this.config = Objects.requireNonNull(config);
-  }
-
-  @Inject
-  private WebCrawler crawler;
-
-  @Inject
-  private Profiler profiler;
-
-  private void run() throws Exception {
-    Guice.createInjector(new WebCrawlerModule(config), new ProfilerModule()).injectMembers(this);
-
-    CrawlResult result = crawler.crawl(config.getStartPages());
-    CrawlResultWriter resultWriter = new CrawlResultWriter(result);
-
-    if (config.getResultPath().isEmpty()) {
-      // Print to sout
-      Writer outputStreamWriter = new OutputStreamWriter(System.out);
-      resultWriter.write(outputStreamWriter);
-    } else {
-      // Write to a file
-      resultWriter.write(Path.of(config.getResultPath()));
+    private WebCrawlerMain(CrawlerConfiguration config) {
+        this.config = Objects.requireNonNull(config);
     }
 
+    @Inject
+    private WebCrawler crawler;
 
-    // TODO: Write the profile data to a text file (or System.out if the file name is empty)
-  }
+    @Inject
+    private Profiler profiler;
 
-  public static void main(String[] args) throws Exception {
-    if (args.length != 1) {
-      System.out.println("Usage: WebCrawlerMain [starting-url]");
-      return;
+    private void run() throws Exception {
+        Guice.createInjector(new WebCrawlerModule(config), new ProfilerModule()).injectMembers(this);
+
+        CrawlResult result = crawler.crawl(config.getStartPages());
+        CrawlResultWriter resultWriter = new CrawlResultWriter(result);
+
+        if (config.getResultPath().isEmpty()) {
+            // Print to sout
+            Writer outputStreamWriter = new OutputStreamWriter(System.out);
+            resultWriter.write(outputStreamWriter);
+        } else {
+            // Write to a file
+            resultWriter.write(Path.of(config.getResultPath()));
+        }
+
+
+        // TODO: Write the profile data to a text file (or System.out if the file name is empty)
+        if (config.getProfileOutputPath() == null || config.getProfileOutputPath().isEmpty()) {
+            // Write to sout
+            try (Writer outStreamWriter = new OutputStreamWriter(System.out)) {
+                this.profiler.writeData(outStreamWriter);
+            }
+        } else {
+            // Write to file
+            Path profileFilePath = Path.of(config.getProfileOutputPath());
+            this.profiler.writeData(profileFilePath);
+        }
     }
 
-    CrawlerConfiguration config = new ConfigurationLoader(Path.of(args[0])).load();
-    new WebCrawlerMain(config).run();
-  }
+    public static void main(String[] args) throws Exception {
+        if (args.length != 1) {
+            System.out.println("Usage: WebCrawlerMain [starting-url]");
+            return;
+        }
+
+        CrawlerConfiguration config = new ConfigurationLoader(Path.of(args[0])).load();
+        new WebCrawlerMain(config).run();
+    }
 }

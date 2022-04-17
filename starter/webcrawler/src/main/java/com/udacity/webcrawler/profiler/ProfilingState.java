@@ -17,6 +17,10 @@ final class ProfilingState {
   private final Map<String, Duration> data = new ConcurrentHashMap<>();
   private final Map<String, Integer> methodCount = new ConcurrentHashMap<>();
 
+  public Map<String, Duration> getData() {
+    return this.data;
+  }
+
   /**
    * Records the given method invocation data.
    *
