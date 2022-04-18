@@ -24,6 +24,7 @@ public final class ParallelWebCrawlerTask extends RecursiveAction {
     private final int maxDepth;
     private final Instant deadline;
     private final ParallelWebCrawlerTask.Builder builder;
+    private final List<String> disallowedUrls;
 
     // I tried injecting the clock but it didn't work, got null pointers
     private final Clock clock;
@@ -36,7 +37,8 @@ public final class ParallelWebCrawlerTask extends RecursiveAction {
                                    int maxDepth,
                                    Instant deadline,
                                    Clock clock,
-                                   ParallelWebCrawlerTask.Builder builder) {
+                                   ParallelWebCrawlerTask.Builder builder,
+                                   List<String> disallowedUrls) {
         this.startingUrl = startingUrl;
         this.visitedUrls = visitedUrls;
         this.ignoredUrls = ignoredUrls;
@@ -46,6 +48,7 @@ public final class ParallelWebCrawlerTask extends RecursiveAction {
         this.deadline = deadline;
         this.clock = clock;
         this.builder = builder;
+        this.disallowedUrls = disallowedUrls;
     }
 
     static final class Builder {
@@ -58,6 +61,7 @@ public final class ParallelWebCrawlerTask extends RecursiveAction {
         private Instant deadline;
         private Clock clock;
         private ParallelWebCrawlerTask.Builder builder;
+        private List<String> disallowedUrls;
 
         public Builder setStartingUrl(String startingUrl) {
             this.startingUrl = startingUrl;
@@ -104,6 +108,11 @@ public final class ParallelWebCrawlerTask extends RecursiveAction {
             return this;
         }
 
+        public Builder setDisallowedUrls(List<String> disallowedUrls) {
+            this.disallowedUrls = disallowedUrls;
+            return this;
+        }
+
         public ParallelWebCrawlerTask build() {
             return new ParallelWebCrawlerTask(
                     startingUrl,
@@ -114,14 +123,15 @@ public final class ParallelWebCrawlerTask extends RecursiveAction {
                     maxDepth,
                     deadline,
                     clock,
-                    builder
+                    builder,
+                    disallowedUrls
             );
         }
     }
 
     @Override
     protected void compute() {
-        crawlInternal(startingUrl, deadline, maxDepth, counts, visitedUrls);
+        crawlInternal(startingUrl, deadline, maxDepth, counts, visitedUrls, disallowedUrls);
     }
 
     private void crawlInternal(
@@ -129,7 +139,8 @@ public final class ParallelWebCrawlerTask extends RecursiveAction {
             Instant deadline,
             int maxDepth,
             Map<String, Integer> counts,
-            Set<String> visitedUrls) {
+            Set<String> visitedUrls,
+            List<String> disallowedUrls) {
         if (maxDepth == 0 || clock.instant().isAfter(deadline)) {
             return;
         }
@@ -138,6 +149,13 @@ public final class ParallelWebCrawlerTask extends RecursiveAction {
                 return;
             }
         }
+
+        for (String disallowedUrl : disallowedUrls) {
+            if (url.contains(disallowedUrl)) {
+                return;
+            }
+        }
+
         if (visitedUrls.contains(url)) {
             return;
         }
@@ -146,12 +164,6 @@ public final class ParallelWebCrawlerTask extends RecursiveAction {
         PageParser.Result result = parserFactory.get(url).parse();
         for (Map.Entry<String, Integer> e : result.getWordCounts().entrySet()) {
             counts.compute(e.getKey(), (k, v) -> v != null ? e.getValue() + counts.get(e.getKey()) : e.getValue());
-
-//            if (counts.containsKey(e.getKey())) {
-//                counts.put(e.getKey(), e.getValue() + counts.get(e.getKey()));
-//            } else {
-//                counts.put(e.getKey(), e.getValue());
-//            }
         }
 
         List<ParallelWebCrawlerTask> subtasks = new ArrayList<>();

@@ -60,7 +60,10 @@ final class ParallelWebCrawler implements WebCrawler {
         List<Future<Void>> futures = new ArrayList<>();
 
         for (String url : startingUrls) {
-            futures.add(pool.submit(taskBuilder.setStartingUrl(url).build()));
+            futures.add(pool.submit(taskBuilder
+                    .setStartingUrl(url)
+                    .setDisallowedUrls(getDisallowedUrls(url))
+                    .build()));
         }
 
         try {
