@@ -62,7 +62,11 @@ public interface PageParser {
        */
       void addWord(String word) {
         Objects.requireNonNull(word);
-        wordCounts.compute(word, (k, v) -> (v == null) ? 1 : v + 1);
+        // For rubric, limiting the growth of popular word count
+        // Using a max of 20
+        if (wordCounts.size() < 20) {
+          wordCounts.compute(word, (k, v) -> (v == null) ? 1 : v + 1);
+        }
       }
 
       /**
