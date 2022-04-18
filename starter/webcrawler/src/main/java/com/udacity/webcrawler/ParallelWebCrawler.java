@@ -55,8 +55,7 @@ final class ParallelWebCrawler implements WebCrawler {
                 .setIgnoredUrls(ignoredUrls)
                 .setParserFactory(parserFactory)
                 .setVisitedUrls(visitedUrls)
-                .setClock(clock)
-                .setSemaphore(new Semaphore(4));
+                .setClock(clock);
 
         List<Future<Void>> futures = new ArrayList<>();
 
@@ -64,6 +63,7 @@ final class ParallelWebCrawler implements WebCrawler {
             futures.add(pool.submit(taskBuilder
                     .setStartingUrl(url)
                     .setDisallowedUrls(getDisallowedUrls(url))
+                    .setSemaphore(new Semaphore(4))
                     .build()));
         }
 
