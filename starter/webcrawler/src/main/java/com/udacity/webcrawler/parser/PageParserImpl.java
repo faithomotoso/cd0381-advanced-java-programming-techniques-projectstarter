@@ -120,8 +120,10 @@ final class PageParserImpl implements PageParser {
    * Returns a Jsoup {@link Document} representation of the file at the given {@link URI}, which may
    * refer to a local document or a remote web page.
    */
-  private Document parseDocument(URI uri) throws IOException {
+  private Document parseDocument(URI uri) throws IOException, InterruptedException {
     if (!isLocalFile(uri)) {
+      // Adding delay for rubric of throttling HTTP requests
+      Thread.sleep(500);
       return Jsoup.parse(uri.toURL(), (int) timeout.toMillis());
     }
 
