@@ -144,14 +144,7 @@ public final class ParallelWebCrawlerTask extends RecursiveAction {
     @Override
     protected void compute() {
 
-        try {
-            semaphore.acquire();
-            crawlInternal(startingUrl, deadline, maxDepth, counts, visitedUrls, disallowedUrls);
-        } catch (InterruptedException e) {
-            e.printStackTrace();
-        } finally {
-            semaphore.release();
-        }
+        crawlInternal(startingUrl, deadline, maxDepth, counts, visitedUrls, disallowedUrls);
     }
 
     private void crawlInternal(
@@ -181,21 +174,28 @@ public final class ParallelWebCrawlerTask extends RecursiveAction {
         }
 
         // This handles the downloading/loading local html and parsing for words and links
-        PageParser.Result result = parserFactory.get(url).parse();
-        for (Map.Entry<String, Integer> e : result.getWordCounts().entrySet()) {
-            counts.compute(e.getKey(), (k, v) -> v != null ? e.getValue() + counts.get(e.getKey()) : e.getValue());
-        }
+        try {
+            semaphore.acquire();
+            PageParser.Result result = parserFactory.get(url).parse();
+            for (Map.Entry<String, Integer> e : result.getWordCounts().entrySet()) {
+                counts.compute(e.getKey(), (k, v) -> v != null ? e.getValue() + counts.get(e.getKey()) : e.getValue());
+            }
 
-        List<ParallelWebCrawlerTask> subtasks = new ArrayList<>();
+            List<ParallelWebCrawlerTask> subtasks = new ArrayList<>();
 
-        for (String link : result.getLinks()) {
-            subtasks.add(
-                    builder.setMaxDepth(maxDepth - 1).setStartingUrl(link).build()
-            );
-        }
+            for (String link : result.getLinks()) {
+                subtasks.add(
+                        builder.setMaxDepth(maxDepth - 1).setStartingUrl(link).build()
+                );
+            }
 
-        if (!subtasks.isEmpty()) {
-            invokeAll(subtasks);
+            if (!subtasks.isEmpty()) {
+                invokeAll(subtasks);
+            }
+        } catch (InterruptedException e) {
+            e.printStackTrace();
+        } finally {
+            semaphore.release();
         }
     }
 
