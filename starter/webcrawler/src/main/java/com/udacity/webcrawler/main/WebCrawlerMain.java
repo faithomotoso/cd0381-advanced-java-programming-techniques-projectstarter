@@ -38,8 +38,9 @@ public final class WebCrawlerMain {
 
         if (config.getResultPath().isEmpty()) {
             // Print to sout
-            Writer outputStreamWriter = new OutputStreamWriter(System.out);
-            resultWriter.write(outputStreamWriter);
+            try (Writer outputStreamWriter = new OutputStreamWriter(System.out);) {
+                resultWriter.write(outputStreamWriter);
+            }
         } else {
             // Write to a file
             resultWriter.write(Path.of(config.getResultPath()));

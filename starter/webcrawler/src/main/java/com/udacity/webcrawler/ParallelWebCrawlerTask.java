@@ -11,6 +11,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.RecursiveAction;
+import java.util.concurrent.Semaphore;
 import java.util.regex.Pattern;
 
 // Using RecursiveAction because Set, List and Map can be modified if passed down
@@ -25,6 +26,8 @@ public final class ParallelWebCrawlerTask extends RecursiveAction {
     private final Instant deadline;
     private final ParallelWebCrawlerTask.Builder builder;
     private final List<String> disallowedUrls;
+    // Adding semaphore for throttling https requests per domain
+    private final Semaphore semaphore;
 
     // I tried injecting the clock but it didn't work, got null pointers
     private final Clock clock;
@@ -38,7 +41,8 @@ public final class ParallelWebCrawlerTask extends RecursiveAction {
                                    Instant deadline,
                                    Clock clock,
                                    ParallelWebCrawlerTask.Builder builder,
-                                   List<String> disallowedUrls) {
+                                   List<String> disallowedUrls,
+                                   Semaphore semaphore) {
         this.startingUrl = startingUrl;
         this.visitedUrls = visitedUrls;
         this.ignoredUrls = ignoredUrls;
@@ -49,6 +53,7 @@ public final class ParallelWebCrawlerTask extends RecursiveAction {
         this.clock = clock;
         this.builder = builder;
         this.disallowedUrls = disallowedUrls;
+        this.semaphore = semaphore;
     }
 
     static final class Builder {
@@ -62,6 +67,7 @@ public final class ParallelWebCrawlerTask extends RecursiveAction {
         private Clock clock;
         private ParallelWebCrawlerTask.Builder builder;
         private List<String> disallowedUrls;
+        private Semaphore semaphore;
 
         public Builder setStartingUrl(String startingUrl) {
             this.startingUrl = startingUrl;
@@ -113,6 +119,11 @@ public final class ParallelWebCrawlerTask extends RecursiveAction {
             return this;
         }
 
+        public Builder setSemaphore(Semaphore semaphore) {
+            this.semaphore = semaphore;
+            return this;
+        }
+
         public ParallelWebCrawlerTask build() {
             return new ParallelWebCrawlerTask(
                     startingUrl,
@@ -124,14 +135,23 @@ public final class ParallelWebCrawlerTask extends RecursiveAction {
                     deadline,
                     clock,
                     builder,
-                    disallowedUrls
+                    disallowedUrls,
+                    semaphore
             );
         }
     }
 
     @Override
     protected void compute() {
-        crawlInternal(startingUrl, deadline, maxDepth, counts, visitedUrls, disallowedUrls);
+
+        try {
+            semaphore.acquire();
+            crawlInternal(startingUrl, deadline, maxDepth, counts, visitedUrls, disallowedUrls);
+        } catch (InterruptedException e) {
+            e.printStackTrace();
+        } finally {
+            semaphore.release();
+        }
     }
 
     private void crawlInternal(
@@ -156,10 +176,10 @@ public final class ParallelWebCrawlerTask extends RecursiveAction {
             }
         }
 
-        if (visitedUrls.contains(url)) {
+        if (!visitedUrls.add(url)) {
             return;
         }
-        visitedUrls.add(url);
+
         // This handles the downloading/loading local html and parsing for words and links
         PageParser.Result result = parserFactory.get(url).parse();
         for (Map.Entry<String, Integer> e : result.getWordCounts().entrySet()) {

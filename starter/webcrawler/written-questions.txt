@@ -40,7 +40,7 @@ Q3. Analyze your method profiler through the lens of Aspect Oriented Programming
     (b) What are the join points of the Profiler in the web crawler program?
 
 A3.
-    (a) Method profiling
+    (a) Performance monitoring
 
     (b) wrap, writeData(Path), writeData(Writer)
 
