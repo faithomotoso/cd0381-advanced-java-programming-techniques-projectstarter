@@ -8,6 +8,7 @@ import java.io.IOException;
 import java.io.Writer;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.nio.file.StandardOpenOption;
 import java.util.Objects;
 
 /**
@@ -35,10 +36,8 @@ public final class CrawlResultWriter {
     // This is here to get rid of the unused variable warning.
     Objects.requireNonNull(path);
 
-    try (Writer jsonWriter = Files.newBufferedWriter(path)) {
-      ObjectMapper objectMapper = new ObjectMapper();
-
-      objectMapper.writeValue(jsonWriter, this.result);
+    try (Writer jsonWriter = Files.newBufferedWriter(path, StandardOpenOption.CREATE, StandardOpenOption.APPEND)) {
+      write(jsonWriter);
     }
   }
 
@@ -54,6 +53,7 @@ public final class CrawlResultWriter {
     ObjectMapper objectMapper = new ObjectMapper();
     objectMapper.disable(JsonGenerator.Feature.AUTO_CLOSE_TARGET);
     objectMapper.writeValue(writer, this.result);
+    writer.write(System.lineSeparator());
     writer.flush();
     System.out.println(writer);
   }
