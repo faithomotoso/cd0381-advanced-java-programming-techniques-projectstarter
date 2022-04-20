@@ -40,9 +40,12 @@ Q3. Analyze your method profiler through the lens of Aspect Oriented Programming
     (b) What are the join points of the Profiler in the web crawler program?
 
 A3.
-    (a) Performance monitoring
+    (a) The cross-cutting concern being addressed by the Profiler class is performance monitoring. The Profiler class records
+        the execution time of the classes wrapped with the Proxy.
 
-    (b) wrap, writeData(Path), writeData(Writer)
+    (b)
+        - The crawl method in WebCrawler interface is a join point of the Profiler
+        - The parse method in PageParser is also a join point of the Profiler
 
 Q4. Identify three (3) different design patterns used in this project, and explain which interfaces, classes, and/or
     libraries use or implement those design patterns.
